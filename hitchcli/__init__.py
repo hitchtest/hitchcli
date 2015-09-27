@@ -1,1 +1,1 @@
-from hitchcli.command_line_steps import CommandLineSteps
+from hitchcli.command_line_steps import CommandLineStepLibrary
