@@ -34,8 +34,10 @@ class CommandLineStepLibrary(object):
 
     def run(self, command, args=None):
         """Run application."""
+        import sys
         args = [] if args is None else args
         self.process = spawn(command, args=args)
+        self.process.logfile = sys.stdout.buffer
 
     def expect(self, text=None, timeout=None):
         """Expect 'text' to appear."""
