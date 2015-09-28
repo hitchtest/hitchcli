@@ -1,4 +1,4 @@
-from pexpect import spawn, EOF
+from pexpect import spawn, EOF, TIMEOUT
 from os import chdir, path, fdopen
 import sys
 
@@ -9,7 +9,7 @@ class HitchCommandLineException(Exception):
 
 class ExpectedTextNotShown(HitchCommandLineException):
     def __init__(self, expected, shown):
-        super(CommandLineExpectedTextNotShown, self).__init__((
+        super(ExpectedTextNotShown, self).__init__((
             "ACTUAL:\n\n{}\n\nEXPECTED:\n\n{}\n"
         ).format(shown, expected))
 
@@ -19,6 +19,7 @@ class WrongExitCode(HitchCommandLineException):
         super(WrongExitCode, self).__init__((
             "{}\nReturn code should have been {}, but was {}."
         ).format(output, expected_code, actual_code))
+
 
 
 class CommandLineStepLibrary(object):
@@ -42,8 +43,10 @@ class CommandLineStepLibrary(object):
             timeout = self.default_timeout
         try:
             self.process.expect(text, timeout=timeout)
-        except EOF as error:
-            raise CommandLineExpectedTextNotShown(text, self._output())
+        except EOF:
+            raise ExpectedTextNotShown(text, self._output())
+        except TIMEOUT:
+            raise ExpectedTextNotShown(text, self._output())
 
     def send_control(self, letter):
         """Send Ctrl-[letter] to the application."""
@@ -77,7 +80,7 @@ class CommandLineStepLibrary(object):
         return "\n".join(str(self.process.before).split('\\r\\n'))
 
     def show_output(self):
-        print(_self.output())
+        print(self._output())
 
     def exit(self, with_code=0, timeout=None):
         """Exit and expect a code 'with_code' after timeout seconds."""
@@ -86,5 +89,5 @@ class CommandLineStepLibrary(object):
         self.process.expect(EOF, timeout=timeout)
         self.process.close()
         if with_code != self.process.exitstatus:
-            raise WrongExitCode(self.output(), with_code, self.process.exitstatus)
+            raise WrongExitCode(self._output(), with_code, self.process.exitstatus)
         self.process = None
