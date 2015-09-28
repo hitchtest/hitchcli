@@ -13,7 +13,7 @@ def read(*parts):
     return codecs.open(os.path.join(os.path.abspath(os.path.dirname(__file__)), *parts), 'r').read()
 
 setup(name="hitchcli",
-      version="0.2",
+      version="0.2.1",
       description="Hitch plug-in to test command line applications.",
       long_description=read('README.rst'),
       classifiers=[
