@@ -21,6 +21,13 @@ class WrongExitCode(HitchCommandLineException):
         ).format(output, expected_code, actual_code))
 
 
+class DidNotExitBeforeTimeout(HitchCommandLineException):
+    def __init__(self, timeout, output):
+        super(DidNotExitBeforeTimeout, self).__init__((
+            "Timed out after: {} secs\nOUTPUT:\n\n{}\n"
+        ).format(timeout, output))
+
+
 
 class CommandLineStepLibrary(object):
     """A package of steps which can be used to test command line applications."""
@@ -75,7 +82,10 @@ class CommandLineStepLibrary(object):
         """Expect an exit and don't care what kind of code."""
         if timeout is None:
             timeout = self.default_timeout
-        self.process.expect(EOF, timeout=timeout)
+        try:
+            self.process.expect(EOF, timeout=timeout)
+        except TIMEOUT:
+            raise DidNotExitBeforeTimeout(timeout, self._output())
         self.process.close()
 
     def _output(self):
@@ -88,8 +98,11 @@ class CommandLineStepLibrary(object):
         """Exit and expect a code 'with_code' after timeout seconds."""
         if timeout is None:
             timeout = self.default_timeout
-        self.process.expect(EOF, timeout=timeout)
-        self.process.close()
-        if with_code != self.process.exitstatus:
-            raise WrongExitCode(self._output(), with_code, self.process.exitstatus)
-        self.process = None
+        try:
+            self.process.expect(EOF, timeout=timeout)
+            if with_code != self.process.exitstatus:
+                raise WrongExitCode(self._output(), with_code, self.process.exitstatus)
+            self.process.close()
+        except TIMEOUT:
+            self.process.close()
+            raise DidNotExitBeforeTimeout(timeout, self._output())
