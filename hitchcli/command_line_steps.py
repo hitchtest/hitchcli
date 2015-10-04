@@ -100,9 +100,9 @@ class CommandLineStepLibrary(object):
             timeout = self.default_timeout
         try:
             self.process.expect(EOF, timeout=timeout)
+            self.process.close()
             if with_code != self.process.exitstatus:
                 raise WrongExitCode(self._output(), with_code, self.process.exitstatus)
-            self.process.close()
         except TIMEOUT:
             self.process.close()
             raise DidNotExitBeforeTimeout(timeout, self._output())
