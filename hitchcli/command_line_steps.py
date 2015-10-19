@@ -28,6 +28,13 @@ class DidNotExitBeforeTimeout(HitchCommandLineException):
         ).format(timeout, output))
 
 
+class BadExitCode(HitchCommandLineException):
+    def __init__(self, exit_code):
+        super(BadExitCode, self).__init__((
+            "Bad exit code '{}' specified in step. Should be an integer or 'any'."
+        ).format(exit_code))
+
+
 
 class CommandLineStepLibrary(object):
     """A package of steps which can be used to test command line applications."""
@@ -81,24 +88,32 @@ class CommandLineStepLibrary(object):
             )
         self.process.kill(NAMES_TO_SIGNAL_DICT[signal_name])
 
-    def exit_with_any_code(self, timeout=None):
-        """Expect an exit and don't care what kind of code."""
-        if timeout is None:
-            timeout = self.default_timeout
-        try:
-            self.process.expect(EOF, timeout=timeout)
-        except TIMEOUT:
-            raise DidNotExitBeforeTimeout(timeout, self._output())
-        self.process.close()
-
     def _output(self):
         return "\n".join(str(self.process.before).split('\\r\\n'))
 
     def show_output(self):
         print(self._output())
 
-    def exit(self, with_code=0, timeout=None):
+    def finish(self, with_code=0, timeout=None):
         """Exit and expect a code 'with_code' after timeout seconds."""
+        if timeout is None:
+            timeout = self.default_timeout
+        try:
+            self.process.expect(EOF, timeout=timeout)
+            self.process.close()
+            if with_code != "any":
+                try:
+                    integer_code = int(with_code)
+                except ValueError:
+                    raise BadExitCode(with_code)
+                if integer_code != self.process.exitstatus:
+                    raise WrongExitCode(self._output(), with_code, self.process.exitstatus)
+        except TIMEOUT:
+            self.process.close()
+            raise DidNotExitBeforeTimeout(timeout, self._output())
+
+    def exit(self, with_code=0, timeout=None):
+        """Exit and expect a code 'with_code' after timeout seconds. (DEPRECATED)"""
         if timeout is None:
             timeout = self.default_timeout
         try:
@@ -109,3 +124,13 @@ class CommandLineStepLibrary(object):
         except TIMEOUT:
             self.process.close()
             raise DidNotExitBeforeTimeout(timeout, self._output())
+
+    def exit_with_any_code(self, timeout=None):
+        """Expect an exit and don't care what kind of code. (DEPRECATED)"""
+        if timeout is None:
+            timeout = self.default_timeout
+        try:
+            self.process.expect(EOF, timeout=timeout)
+        except TIMEOUT:
+            raise DidNotExitBeforeTimeout(timeout, self._output())
+        self.process.close()
